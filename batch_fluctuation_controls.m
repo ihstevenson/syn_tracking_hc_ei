@@ -42,7 +42,6 @@ end
 fluc.optimal_window_size=[];
 fluc.cv=[];
 
-output_dir_pos = 'E:\fluctuation_control_pos\';
 output_dir_neg = 'E:\fluctuation_control_neg\';
 
 cc=1;
@@ -54,42 +53,14 @@ for rec_num=1:length(glist)
 
     if ~isempty(detection.ijlist)
         load([output_dir prefix '_opt_window'])
+        load([output_dir_neg prefix '_opt_window_shuff'])
         for cnx = 1:size(detection.ijlist,1)
             fsyn = detection.fitout(detection.fidx(cnx));
             fluc.optimal_window_size(cc,1) = smooth_estimate(cnx).window;
             fluc.cv(cc,1) = nanstd(smooth_estimate(cnx).eff)/fsyn.eff;
-            cc=cc+1;
-        end
-    end
-end
-cc=1;
-for rec_num=1:length(glist)
-    prefix = strsplit(glist(rec_num).name,'_');
-    prefix = prefix{1};
-    load([output_dir prefix '_detection'])
 
-    if ~isempty(detection.ijlist)
-        load([output_dir_neg prefix '_opt_window_shuff'])
-        for cnx = 1:size(detection.ijlist,1)
-            fsyn = detection.fitout(detection.fidx(cnx));
             fluc.optimal_window_size(cc,2) = smooth_estimate_shuff(cnx).window;
             fluc.cv(cc,2) = nanstd(smooth_estimate_shuff(cnx).eff)/fsyn.eff;
-            cc=cc+1;
-        end
-    end
-end
-cc=1;
-for rec_num=1:length(glist)
-    prefix = strsplit(glist(rec_num).name,'_');
-    prefix = prefix{1};
-    load([output_dir prefix '_detection'])
-
-    if ~isempty(detection.ijlist)
-        load([output_dir_pos prefix '_opt_window_shuff'])
-        for cnx = 1:size(detection.ijlist,1)
-            fsyn = detection.fitout(detection.fidx(cnx));
-            fluc.optimal_window_size(cc,3) = smooth_estimate_shuff(cnx).window;
-            fluc.cv(cc,3) = nanstd(smooth_estimate_shuff(cnx).eff)/fsyn.eff;
             cc=cc+1;
         end
     end
@@ -98,30 +69,3 @@ save('results\optimal_fluctuation_windows','fluc')
 
 %%
 
-figure(101)
-e=linspace(-1.5,3,50);
-ax(1)=subplot(3,2,1)
-histogram(log10(fluc.cv(:,2)),e,'EdgeColor','none')
-box off; set(gca,'TickDir','out')
-ax(2)=subplot(3,2,3)
-histogram(log10(fluc.cv(:,1)),e,'EdgeColor','none')
-box off; set(gca,'TickDir','out')
-ax(3)=subplot(3,2,5)
-histogram(log10(fluc.cv(:,3)),e,'EdgeColor','none')
-box off; set(gca,'TickDir','out')
-linkaxes(ax)
-
-e=linspace(0,600,25);
-axc(1)=subplot(3,2,2)
-histogram(fluc.optimal_window_size(:,2),e,'EdgeColor','none')
-box off; set(gca,'TickDir','out')
-axc(2)=subplot(3,2,4)
-histogram(fluc.optimal_window_size(:,1),e,'EdgeColor','none')
-box off; set(gca,'TickDir','out')
-axc(3)=subplot(3,2,6)
-histogram(fluc.optimal_window_size(:,3),e,'EdgeColor','none')
-box off; set(gca,'TickDir','out')
-linkaxes(axc)
-
-prctile(fluc.optimal_window_size,[25 50 75])
-prctile(fluc.cv,[25 50 75])
