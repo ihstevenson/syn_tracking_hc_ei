@@ -278,11 +278,8 @@ end
 
 optimal_window_size=[];
 fluc_cv=[];
-contrib=[];
-npost=[];
-T=[];
-cc=1;
 
+cc=1;
 glist = dir([res_dir '*_detected_final.mat']);
 for rec_num=1:length(glist)
     prefix = strsplit(glist(rec_num).name,'_');

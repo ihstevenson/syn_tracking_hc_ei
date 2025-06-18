@@ -1,225 +1,336 @@
-
 res_dir = 'C:\Users\istevenson\Documents\GitHub\fluctuation_project\detection\';
-dwdir = 'E:\fluctuation_backup\dw\';
+
 glist = dir([res_dir '*_detected_final.mat']);
+rec_num=29
+cnx = 26
 
-% Fig 3A [14-14]
-% Fig 3B [25-9]
+% Fig 2D examples are...
+% 1-13, 35-3
+% 51-8, 42-10
+% 29-26, 25-25
 
-% [35-5, 25-13]
-
-% Fig 3C [1-6,29-3,25-28]
-% Fig 3D [51-10,25-1,40-10] 
-% Fig 3E [2-27,32-9,34-9]
-tmp=strsplit(glist(14).name,'_');
-prefix = tmp{1};
-cnx=14;
-
-
+prefix = strsplit(glist(rec_num).name,'_');
+prefix = prefix{1};
 load([res_dir prefix '_detected_final'])
+load([res_dir prefix '_opt_window'])
+
 [r,c] = find(result.detected_cnx);
 fit_res.ssi = result.ssi(sub2ind(size(result.ssi),r,c))';
 fit_res.kidx = (fit_res.cvsmoo<.1) & fit_res.ssi<0.2 & (fit_res.rsq>.5) & (fit_res.dur<1) & (fit_res.lat>0.75) & (fit_res.lat<10) & (abs(fit_res.eff)<.5) & (abs(fit_res.eff)>.01) & fit_res.ex;
 ijlist = [r(fit_res.kidx) c(fit_res.kidx)];
-T = max(cellfun(@max,Tlist));
-load([dwdir prefix '_joint_res_300.mat'])
+ij = ijlist(cnx,:);
 
 
-% rates
-pre = ijlist(cnx,1);
-post = ijlist(cnx,2);
-fidx = find(r==pre & c==post);
+%% optimize window size for all classified putative synapses
 
-dt=1e-1;
-tin = linspace(0,T,ceil(T/dt));
-[y_pre,t_pre,optw,W1,C1] = sskernel(Tlist{pre},tin);
-pre_fr = y_pre/sum(y_pre)*length(Tlist{pre});
-[y_post,t_post,optw2,W12,C12] = sskernel(Tlist{post},tin);
-pos_fr = y_post/sum(y_post)*length(Tlist{post});
+fidx = find(r==ijlist(cnx,1) & c==ijlist(cnx,2));
+fsyn = fitout(fidx);
+sparams=params;
+syn_v = fsyn.atoms.syn1(exp(fsyn.feat_params))>0.01;
+syn_t = params.t(syn_v);
+sparams.interval = [min(syn_t) max(syn_t)];
 
-% joint rate statistics
-pedges = linspace(1,length(pre_fr),10);
-pre_rank = tiedrank(pre_fr);
-pos_rank = tiedrank(pos_fr);
-[N,Xedges,Yedges,binX,binY] = histcounts2(pre_rank,pos_rank,pedges,pedges);
+% Shuffle randomly (negative control)
+Tshuff = shuffle_preserve_efficacy(Tlist,ij,sparams);
+
+% Shuffle weighted (positive control)
+%get baseline fraction
+pfrac = 1-sum(fsyn.lamsmoo(syn_v))/sum(fsyn.yhat(syn_v));
+Tshuff = shuffle_manip_efficacy(Tlist,ij,sparams,pfrac,1/(60*40));
+
+params.nknots=6;
+params.doPlot = false;
+
+figure(2)
+[opt_res_shuff(cnx),smooth_estimate_shuff(cnx)] = optimizeWindowSize(ijlist(cnx,:),Tshuff,params,fsyn,20,1);
 
 
-% xcorr weighted following joint rate conditions
-[c,cmat] = spk_xcorr(Tlist{pre},Tlist{post},params.interval(1),params.interval(2),params.num_bins);
-cedges = linspace(params.interval(1),params.interval(2),params.num_bins+1);
-[~,~,cbins] = histcounts(cmat(:,1),cedges);
-C = zeros(length(cbins),max(cbins));
-for i=1:max(cbins)
-    C(:,i) = cbins==i;
-end
+%% original
+figure(31)
 
-nsplit=10;
-clear axjoint
-dfac = length(pre_rank)/nsplit;
-pedges = (1:(nsplit)+1)-.5;
-[Nlo,~,~,binXlo,binYlo] = histcounts2(ceil(pre_rank/dfac),ceil(pos_rank/dfac),pedges,pedges);
+subplot(4,10,2:10)
+shadedErrorBar(smooth_estimate(cnx).tcenter/60,smooth_estimate(cnx).eff,smooth_estimate(cnx).effse)
+xlim([0 max(cellfun(@max,Tlist))/60])
+line(xlim(),[0 0])
+axis tight; box off;
+set(gca,'TickDir','out')
+xlabel('Time [min]')
+ylabel('Efficacy')
+tcenter = linspace(0,max(cellfun(@max,Tlist)),11);
+hold on
+plot(tcenter/60,interp1(smooth_estimate(cnx).tcenter,smooth_estimate(cnx).eff,tcenter)-interp1(smooth_estimate(cnx).tcenter,smooth_estimate(cnx).effse,tcenter),'^')
+hold off
+rr = nanmedian(smooth_estimate(cnx).effse);
+yl = ylim();
+ylim([max(yl(1),min(smooth_estimate(cnx).eff)-rr*2) min(yl(2),max(smooth_estimate(cnx).eff)+rr*2)])
 
-pax = linspace(0,100,nsplit+1);
-pax = pax(1:end-1)+diff(pax)/2;
-pre_ax = prctile(pre_fr,pax)/dt;
-pos_ax = prctile(pos_fr,pax)/dt;
+fidx=find(r==ijlist(cnx,1) & c==ijlist(cnx,2));
+fitout(fidx)
+smooth_estimate(cnx)
 
-% alpha fn weights
-tau = 300;
-twin = linspace(0,tau*10,tau*10/dt+1);
-wfun = twin/tau.*exp(1-twin/tau);
-wfun = wfun/sum(wfun);
-% 
-% figure(51)
+title(strjoin([prefix ' ' num2str(tab_sub.unit_id(r(fidx))) ' ' num2str(tab_sub.unit_id(c(fidx))) tab_sub.ecephys_structure_acronym(r(fidx)) tab_sub.ecephys_structure_acronym(c(fidx))]))
+
+%
+% figure(32)
+cc = spk_xcorr(Tlist{ijlist(cnx,1)},Tlist{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+ac = spk_xcorr(Tlist{ijlist(cnx,1)},Tlist{ijlist(cnx,1)},params.interval(1),params.interval(2),params.num_bins);
+ac(params.t==0)=NaN;
+acp = spk_xcorr(Tlist{ijlist(cnx,2)},Tlist{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+acp(params.t==0)=NaN;
 % clf
-% subplot(5,5,1)
-% imagesc(N)
-% set(gca,'TickDir','out'); set(gca,'YDir','normal'); box off; axis equal
-% axis image
-% ylabel('Pre')
-% xlabel('Post')
-% 
-% subplot(5,5,3:5)
-% plot(tin/60,pre_fr/dt,tin/60,pos_fr/dt)
-% box off; set(gca,'TickDir','out')
-% axis tight
-% 
-% c=1;
-% for i=[1 10]
-%     for j=[1 10]
-%         fprintf('.')
-%         if sum(binXlo==i & binYlo==j)>0
-%             pattern_ids = binXlo==i & binYlo==j;
-%             pattern_mask = conv(pattern_ids,wfun);
-%             pattern_mask = pattern_mask(1:length(tin));
-%             pre_w = interp1(tin,pattern_mask,Tlist{pre},'nearest')';
-% 
-%             figure(51)
-%             subplot(5,5,c*5+1)
-%             fitjoint_post(i,j) = composite_model_fit_weighted([pre post],Tlist,params,'i>j',pre_w,fitout(fidx).feat_params);
-%             yl=ylim();
-% 
-%             pattern_mask2 = conv(fliplr(pattern_ids),wfun);
-%             pattern_mask2 = fliplr(pattern_mask2(1:length(tin)));
-%             pre_w2 = interp1(tin,pattern_mask2,Tlist{pre},'nearest')';
-% 
-%             subplot(5,5,c*5+2)
-%             fitjoint_pre(i,j) = composite_model_fit_weighted([pre post],Tlist,params,'i>j',pre_w2,fitout(fidx).feat_params);
-%             yl2=ylim();
-% 
-%             yl = [0 max(yl(2),yl2(2))];
-%             ylim(yl);  box off; set(gca,'TickDir','out')
-%             subplot(5,5,c*5+1)
-%             ylim(yl); box off; set(gca,'TickDir','out')
-% 
-% 
-%             subplot(5,5,c*5+(3:5))
-%             plot(tin/60,pattern_mask/max(pattern_mask)/2,tin/60,pattern_mask2/max(pattern_mask2)/2)
-%             hold on
-%             hedges=linspace(0,T/60,256);
-%             histogram(find(pattern_ids)*dt/60,hedges,'Normalization','pdf','EdgeColor','none')
-%             hold off
-%             box off; set(gca,'TickDir','out')
-%             axis tight
-%         end
-%         c=c+1;
-%     end
-% 
-%     fprintf('\n')
-% end
+subplot(4,10,11)
+bar(params.t,cc,1,'EdgeColor','none')
+hold on
+plot(params.t,fitout(fidx).yhat*length(Tlist{ijlist(cnx,1)}))
+hold off
+box off; set(gca,'TickDir','out')
+line([0 0],ylim())
+subplot(4,10,20+1)
+bar(params.t,ac,1,'EdgeColor','none')
+box off; set(gca,'TickDir','out')
+line([0 0],ylim())
+subplot(4,10,30+1)
+bar(params.t,acp,1,'EdgeColor','none')
+box off; set(gca,'TickDir','out')
+line([0 0],ylim())
 
-% dw map and bcm fit
-showPrePostDw(joint_res(cnx).fitjoint_pre,joint_res(cnx).fitjoint_post,joint_res(cnx).Nlo)
-figure(24)
-subplot(1,4,1)
-set(gca,'CLim',[0 max(get(gca,'CLim'))])
-subplot(1,4,2)
-cl(1,:)=get(gca,'CLim');
-subplot(1,4,3)
-cl(2,:)=get(gca,'CLim');
-set(gca,'CLim',[min(cl(:,1)) max(cl(:,2))])
-subplot(1,4,2)
-set(gca,'CLim',[min(cl(:,1)) max(cl(:,2))])
+ww = smooth_estimate(cnx).window;
+ww = 10*60;
+cc(:,2:10)=NaN;
+ac(:,2:10)=NaN;
+acp(:,2:10)=NaN;
 
-% bcm fit
-cent = linspace(0,100,11);
-cent = cent(1:end-1)+diff(cent)/2;
-pre_pct = prctile(pre_fr,cent);
-pos_pct = prctile(pos_fr,cent);
-
-w=[];
-for i=1:size(joint_res(cnx).fitjoint_post,1)
-    for j=1:size(joint_res(cnx).fitjoint_post,2)
-        w(i,j,1) = joint_res(cnx).fitjoint_post(i,j).eff;
-        w(i,j,2) = joint_res(cnx).fitjoint_pre(i,j).eff;
+for i=2:10
+    tid = (Tlist{ijlist(cnx,1)}>(tcenter(i)-ww/2) & Tlist{ijlist(cnx,1)}<(tcenter(i)+ww/2));
+    if sum(tid)>0
+        cc(:,i) = spk_xcorr(Tlist{ijlist(cnx,1)}(tid),Tlist{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+        ac(:,i) = spk_xcorr(Tlist{ijlist(cnx,1)}(tid),Tlist{ijlist(cnx,1)},params.interval(1),params.interval(2),params.num_bins);
+        ac(params.t==0,i)=NaN;
+        cc(:,i) = cc(:,i)/sum(tid);
+        ac(:,i) = ac(:,i)/sum(tid);
+    end
+    tidp = (Tlist{ijlist(cnx,2)}>(tcenter(i)-ww/2) & Tlist{ijlist(cnx,2)}<(tcenter(i)+ww/2));
+    if sum(tidp)>0
+        acp(:,i) = spk_xcorr(Tlist{ijlist(cnx,2)}(tidp),Tlist{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+        acp(params.t==0,i)=NaN;
+        acp(:,i) = acp(:,i)/sum(tidp);
     end
 end
-dw = (w(:,:,1)-w(:,:,2))*100;
+
+for i=2:10
+    subplot(4,10,10+i)
+    bar(params.t,cc(:,i),1,'EdgeColor','none')
+    box off; set(gca,'TickDir','out')
+    %                 line([0 0],ylim())
+    ylim([0 max(max(cc(:,2:end)))])
+    xlim([-.01 .01])
+    subplot(4,10,20+i)
+    bar(params.t,ac(:,i),1,'EdgeColor','none')
+    box off; set(gca,'TickDir','out')
+    %                 line([0 0],ylim())
+    ylim([0 max(max(ac(:,2:end)))])
+    subplot(4,10,30+i)
+    bar(params.t,acp(:,i),1,'EdgeColor','none')
+    box off; set(gca,'TickDir','out')
+    %                 line([0 0],ylim())
+    ylim([0 max(max(acp(:,2:end)))])
+end
+
+%%
+
+figure(32)
+
+subplot(4,10,2:10)
+shadedErrorBar(smooth_estimate_shuff(cnx).tcenter/60,smooth_estimate_shuff(cnx).eff,smooth_estimate_shuff(cnx).effse)
+xlim([0 max(cellfun(@max,Tlist))/60])
+line(xlim(),[0 0])
+axis tight; box off;
+set(gca,'TickDir','out')
+xlabel('Time [min]')
+ylabel('Efficacy')
+tcenter = linspace(0,max(cellfun(@max,Tlist)),11);
+hold on
+plot(tcenter/60,interp1(smooth_estimate_shuff(cnx).tcenter,smooth_estimate_shuff(cnx).eff,tcenter)-interp1(smooth_estimate_shuff(cnx).tcenter,smooth_estimate_shuff(cnx).effse,tcenter),'^')
+hold off
+rr = nanmedian(smooth_estimate(cnx).effse);
+%yl = ylim();
+ylim([max(yl(1),min(smooth_estimate(cnx).eff)-rr*2) min(yl(2),max(smooth_estimate(cnx).eff)+rr*2)])
+
+fidx=find(r==ijlist(cnx,1) & c==ijlist(cnx,2));
+fitout(fidx)
+smooth_estimate(cnx)
+
+title(strjoin([prefix ' ' num2str(tab_sub.unit_id(r(fidx))) ' ' num2str(tab_sub.unit_id(c(fidx))) tab_sub.ecephys_structure_acronym(r(fidx)) tab_sub.ecephys_structure_acronym(c(fidx))]))
+
+%
+% figure(32)
+cc = spk_xcorr(Tshuff{ijlist(cnx,1)},Tshuff{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+ac = spk_xcorr(Tshuff{ijlist(cnx,1)},Tshuff{ijlist(cnx,1)},params.interval(1),params.interval(2),params.num_bins);
+ac(params.t==0)=NaN;
+acp = spk_xcorr(Tlist{ijlist(cnx,2)},Tlist{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+acp(params.t==0)=NaN;
+% clf
+subplot(4,10,11)
+bar(params.t,cc,1,'EdgeColor','none')
+hold on
+plot(params.t,fitout(fidx).yhat*length(Tlist{ijlist(cnx,1)}))
+hold off
+box off; set(gca,'TickDir','out')
+line([0 0],ylim())
+subplot(4,10,20+1)
+bar(params.t,ac,1,'EdgeColor','none')
+box off; set(gca,'TickDir','out')
+line([0 0],ylim())
+subplot(4,10,30+1)
+bar(params.t,acp,1,'EdgeColor','none')
+box off; set(gca,'TickDir','out')
+line([0 0],ylim())
+
+ww = smooth_estimate_shuff(cnx).window;
+ww = 10*60;
+cc(:,2:10)=NaN;
+ac(:,2:10)=NaN;
+acp(:,2:10)=NaN;
+
+for i=2:10
+    tid = (Tshuff{ijlist(cnx,1)}>(tcenter(i)-ww/2) & Tshuff{ijlist(cnx,1)}<(tcenter(i)+ww/2));
+    if sum(tid)>0
+        cc(:,i) = spk_xcorr(Tshuff{ijlist(cnx,1)}(tid),Tshuff{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+        ac(:,i) = spk_xcorr(Tshuff{ijlist(cnx,1)}(tid),Tshuff{ijlist(cnx,1)},params.interval(1),params.interval(2),params.num_bins);
+        ac(params.t==0,i)=NaN;
+        cc(:,i) = cc(:,i)/sum(tid);
+        ac(:,i) = ac(:,i)/sum(tid);
+    end
+    tidp = (Tshuff{ijlist(cnx,2)}>(tcenter(i)-ww/2) & Tshuff{ijlist(cnx,2)}<(tcenter(i)+ww/2));
+    if sum(tidp)>0
+        acp(:,i) = spk_xcorr(Tshuff{ijlist(cnx,2)}(tidp),Tshuff{ijlist(cnx,2)},params.interval(1),params.interval(2),params.num_bins);
+        acp(params.t==0,i)=NaN;
+        acp(:,i) = acp(:,i)/sum(tidp);
+    end
+end
+
+for i=2:10
+    subplot(4,10,10+i)
+    bar(params.t,cc(:,i),1,'EdgeColor','none')
+    box off; set(gca,'TickDir','out')
+    %                 line([0 0],ylim())
+    ylim([0 max(max(cc(:,2:end)))])
+    xlim([-.01 .01])
+    subplot(4,10,20+i)
+    bar(params.t,ac(:,i),1,'EdgeColor','none')
+    box off; set(gca,'TickDir','out')
+    %                 line([0 0],ylim())
+    ylim([0 max(max(ac(:,2:end)))])
+    subplot(4,10,30+i)
+    bar(params.t,acp(:,i),1,'EdgeColor','none')
+    box off; set(gca,'TickDir','out')
+    %                 line([0 0],ylim())
+    ylim([0 max(max(acp(:,2:end)))])
+end
+
+%% get results for all pairs...
+
+glist = dir([res_dir '*_detected_final.mat']);
+for rec_num=23:length(glist)
+    prefix = strsplit(glist(rec_num).name,'_');
+    prefix = prefix{1};
+    load([res_dir prefix '_detected_final'])
+    load([res_dir prefix '_opt_window'])
+    [r,c] = find(result.detected_cnx);
+    fit_res.ssi = result.ssi(sub2ind(size(result.ssi),r,c))';
+    fit_res.kidx = (fit_res.cvsmoo<.1) & fit_res.ssi<0.2 & (fit_res.rsq>.5) & (fit_res.dur<1) & (fit_res.lat>0.75) & (fit_res.lat<10) & (abs(fit_res.eff)<.5) & (abs(fit_res.eff)>.01) & fit_res.ex;
+    ijlist = [r(fit_res.kidx) c(fit_res.kidx)];
+
+    clear opt_res_shuff smooth_estimate_shuff
+    if ~isempty(ijlist)
+
+        for cnx = 1:size(ijlist,1)
+
+            ij = ijlist(cnx,:);
+
+            fidx = find(r==ijlist(cnx,1) & c==ijlist(cnx,2));
+            fsyn = fitout(fidx);
+            sparams=params;
+            syn_v = fsyn.atoms.syn1(exp(fsyn.feat_params))>0.01;
+            syn_t = params.t(syn_v);
+            sparams.interval = [min(syn_t) max(syn_t)];
+
+            % Shuffle randomly (negative control)
+            % Tshuff = shuffle_preserve_efficacy(Tlist,ij,sparams);
+
+            % Shuffle weighted (positive control)
+            %get baseline fraction
+            pfrac = 1-sum(fsyn.lamsmoo(syn_v))/sum(fsyn.yhat(syn_v));
+            Tshuff = shuffle_manip_efficacy(Tlist,ij,sparams,pfrac,1/(60*40));
+
+            params.nknots=6;
+            params.doPlot = false;
+
+            figure(2)
+            [opt_res_shuff(cnx),smooth_estimate_shuff(cnx)] = optimizeWindowSize(ijlist(cnx,:),Tshuff,params,fsyn,20,1);
+        end
+        save(['E:\fluctuation_control_pos\' prefix '_opt_window_shuff.mat'],'opt_res_shuff','smooth_estimate_shuff')
+    end
+end
 
 
+%% summarize results for all pairs...
 
-[rpos,rpre] = meshgrid(pos_pct,pre_pct);
-% X = [rpos(:).^2.*rpre(:) -rpos(:).*rpre(:)];
-X = [rpos(:).^2.*rpre(:) -rpos(:).*rpre(:) rpre(:) rpos(:)];
-% X = [rpos(:) rpre(:) rpos(:).*rpre(:)];
-b = glmfit(X,dw(:),'normal');
-dwhat = glmval(b,X,'identity');
+optimal_window_size=[];
+fluc_cv=[];
 
-% b = glmfit(X,dw(:),'normal','constant','off');
-% dwhat = glmval(b,X,'identity','constant','off');
-dwhat = reshape(dwhat,10,10);
-figure(25)
-subplot(2,2,3)
-imagesc(dw)
-set(gca,'YDir','normal')
-subplot(2,2,4)
-imagesc(dwhat)
-set(gca,'YDir','normal')
+cc=1;
+glist = dir([res_dir '*_detected_final.mat']);
+for rec_num=1:length(glist)
+    prefix = strsplit(glist(rec_num).name,'_');
+    prefix = prefix{1};
+    load([res_dir prefix '_detected_final'])
+    [r,c] = find(result.detected_cnx);
+    fit_res.ssi = result.ssi(sub2ind(size(result.ssi),r,c))';
+    fit_res.kidx = (fit_res.cvsmoo<.1) & fit_res.ssi<0.2 & (fit_res.rsq>.5) & (fit_res.dur<1) & (fit_res.lat>0.75) & (fit_res.lat<10) & (abs(fit_res.eff)<.5) & (abs(fit_res.eff)>.01) & fit_res.ex;
+    ijlist = [r(fit_res.kidx) c(fit_res.kidx)];
 
-subplot(2,2,3)
-cl(1,:)=get(gca,'CLim');
-subplot(2,2,4)
-cl(2,:)=get(gca,'CLim');
-set(gca,'CLim',[min(cl(:,1)) max(cl(:,2))])
-subplot(2,2,3)
-set(gca,'CLim',[min(cl(:,1)) max(cl(:,2))])
+    if ~isempty(ijlist)
+        load([res_dir prefix '_opt_window'])
+        load(['E:\fluctuation_control\' prefix '_opt_window_shuff.mat'])
+        for cnx = 1:size(ijlist,1)
+            fidx = find(r==ijlist(cnx,1) & c==ijlist(cnx,2));
+            fsyn = fitout(fidx);
 
-x0=[1:10]-.5;
-figure(25)
+            optimal_window_size(cc,1) = smooth_estimate(cnx).window;
+            fluc_cv(cc,1) = nanstd(smooth_estimate(cnx).eff)/fsyn.eff;
+
+            optimal_window_size(cc,2) = smooth_estimate_shuff(cnx).window;
+            fluc_cv(cc,2) = nanstd(smooth_estimate_shuff(cnx).eff)/fsyn.eff;
+
+            contrib(cc,1) = length(Tlist{ijlist(cnx,1)})*fsyn.eff/length(Tlist{ijlist(cnx,2)});
+            npost(cc,1) = length(Tlist{ijlist(cnx,2)});
+            T(cc,1) = max(cellfun(@max,Tlist));
+            cc=cc+1;
+        end
+    end
+end
+
+%%
+
+figure(101)
+e=linspace(-1.5,3,100);
 ax(1)=subplot(2,2,1)
-hold on
-plot(x0,mean(dwhat(1:3,:)),':')
-plot(x0,mean(dwhat(4:6,:)),':')
-plot(x0,mean(dwhat(7:10,:)),':')
-hold off
-xlabel('Post Rate [%]')
+histogram(log10(fluc_cv(:,1)),e,'EdgeColor','none')
 box off; set(gca,'TickDir','out')
-ax(2)=subplot(2,2,2)
-hold on
-plot(x0,mean(dwhat(:,1:3),2),':')
-plot(x0,mean(dwhat(:,4:6),2),':')
-plot(x0,mean(dwhat(:,7:10),2),':')
-hold off
-xlabel('Pre Rate [%]')
+ax(2)=subplot(2,2,3)
+histogram(log10(fluc_cv(:,2)),e,'EdgeColor','none')
 box off; set(gca,'TickDir','out')
-
 linkaxes(ax)
-subplot(2,2,3)
-cl=get(gca,'CLim');
-set(gca,'Clim',[-1 1]*max(abs(cl)));
-axis equal tight
-colorbar
-subplot(2,2,4)
-set(gca,'Clim',[-1 1]*max(abs(cl)));
-colorbar
-axis equal tight
-% 
-% % %%
-% % figure(51)
-% % exportgraphics(gcf,[prefix '_' sprintf('%03i',cnx) '_before_after_detail.pdf'],'ContentType','vector')
-% figure(24)
-% colormap parula
-% exportgraphics(gcf,[prefix sprintf('_%03i_dw.pdf',cnx)],'ContentType','vector')
-% figure(25)
-% colormap turbo
-% exportgraphics(gcf,[prefix sprintf('_%03i_dw_fit_v3.pdf',cnx)],'ContentType','vector')
+
+e=linspace(0,600,10);
+axc(1)=subplot(2,2,2)
+histogram(optimal_window_size(:,1),e,'EdgeColor','none')
+box off; set(gca,'TickDir','out')
+axc(2)=subplot(2,2,4)
+histogram(optimal_window_size(:,2),e,'EdgeColor','none')
+box off; set(gca,'TickDir','out')
+linkaxes(axc)
+
+prctile(optimal_window_size,[25 50 75])
+prctile(fluc_cv,[25 50 75])
