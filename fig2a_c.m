@@ -136,9 +136,9 @@ subplot(3,5,1:2)
 edges = linspace(log10(0.06),log10(0.65),256);
 [fi,x]=ksdensity(log10(jit_wave(wave_all(:,4)>0,1)),edges,'bandwidth',range(edges)/15);
 [fe,x]=ksdensity(log10(jit_wave(wave_all(:,5)>0,1)),edges,'bandwidth',range(edges)/15);
-shadedErrorBar(x,fi*0,[fi; fi*0])
+shadedErrorBar(x,fi*0,[fi; fi*0]);
 hold on
-shadedErrorBar(x,fe*0,[fe; fe*0])
+shadedErrorBar(x,fe*0,[fe; fe*0]);
 hold off
 box off; set(gca,'TickDir','out')
 xlim([min(x1) log10(0.6)])
@@ -147,9 +147,9 @@ subplot(3,5,3:4)
 edges = linspace(log10(0.1),log10(100),256);
 [fi,x]=ksdensity(log10(wave_all(wave_all(:,4)>0,3)),edges,'bandwidth',range(edges)/15);
 [fe,x]=ksdensity(log10(wave_all(wave_all(:,5)>0,3)),edges,'bandwidth',range(edges)/15);
-shadedErrorBar(x,fi*0,[fi; fi*0])
+shadedErrorBar(x,fi*0,[fi; fi*0]);
 hold on
-shadedErrorBar(x,fe*0,[fe; fe*0])
+shadedErrorBar(x,fe*0,[fe; fe*0]);
 hold off
 box off; set(gca,'TickDir','out')
 xlim(xl)
@@ -158,9 +158,9 @@ subplot(3,5,[10 15])
 edges = linspace(log10(0.08),log10(1.5),256);
 [fi,x]=ksdensity(log10(wave_all(wave_all(:,4)>0,2)),edges,'bandwidth',range(edges)/15);
 [fe,x]=ksdensity(log10(wave_all(wave_all(:,5)>0,2)),edges,'bandwidth',range(edges)/15);
-shadedErrorBar(x,fi*0,[fi; fi*0])
+shadedErrorBar(x,fi*0,[fi; fi*0]);
 hold on
-shadedErrorBar(x,fe*0,[fe; fe*0])
+shadedErrorBar(x,fe*0,[fe; fe*0]);
 hold off
 box off; set(gca,'TickDir','out')
 camroll(90)
