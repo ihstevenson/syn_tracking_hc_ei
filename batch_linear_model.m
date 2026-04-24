@@ -1,5 +1,5 @@
 c=1;
-aic_stp=[]; aic_cov=[]; aic_bcm=[];
+aic_stp=[]; aic_cov=[]; aic_bcm=[]; coef=[];
 r2_stp=[]; r2_cov=[]; r2_bcm=[];
 tau_vec = logspace(log10(10),log10(360),11);
 glist = dir([output_dir '*_detection.mat']);
@@ -72,6 +72,7 @@ for rec_num=1:length(glist)
                 [b3,dev,stat] = glmfit(X(validid,:),y(validid),'normal','weights',1./yse(validid));
                 effhat(:,3) = glmval(b3,X,'identity');
                 aic_bcm(c,taui) = 2*length(b3)+dev;
+                coef(c,taui,:) = b3;
 
                 % goodness-of-fit
                 tmp = corrcoef([y(validid) effhat(validid,:)]);
@@ -86,5 +87,25 @@ for rec_num=1:length(glist)
 end
 
 save('batch_linear_result','aic_stp','aic_cov','aic_bcm','r2_stp','r2_cov','r2_bcm')
+%% fig5e-f
+
+figure(51)
+r2_bcm_opt = max(r2_bcm')';
+dat = [r2_stp' r2_cov(:,[1 6 11]) r2_bcm(:,[1 6 11]) r2_bcm_opt];
+bar(prctile(dat,50))
+hold on
+errorbar(1:8,prctile(dat,50),prctile(dat,50)-prctile(dat,25),prctile(dat,75)-prctile(dat,50),'.')
+hold off
+
+b=bootstrp(1000,'nanmedian',dat(:,end));
+[nanmedian(dat(:,end)) std(b)]
+
+b=bootstrp(1000,'nanmedian',dat(:,1));
+[nanmedian(dat(:,1)) std(b)]
+
 %%
 
+aic_cov_opt=min(aic_cov')';
+aic_bcm_opt=min(aic_bcm')';
+[~,i]=min([aic_stp' aic_cov_opt aic_bcm_opt]');
+tabulate(i)
