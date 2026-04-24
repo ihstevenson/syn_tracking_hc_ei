@@ -7,20 +7,20 @@ prctile(fluc.optimal_window_size,[25 50 75])
 prctile(fluc.cv,[25 50 75])
 
 figure(31)
+subplot(2,1,1)
 e=linspace(-1.5,3,1024);
 [f,x] = ksdensity(log10(fluc.cv(:,1)),e);
-shadedErrorBar(x,f*0,[f; f*0]);
+shadedErrorBar(x,f*0,[f; f*0],'b');
 hold on
 [fcontrol,x] = ksdensity(log10(fluc.cv(:,2)),e);
-shadedErrorBar(x,fcontrol*0,[fcontrol; fcontrol*0]);
+shadedErrorBar(x,fcontrol*0,[fcontrol; fcontrol*0],'r');
 box off; set(gca,'TickDir','out')
 hold off
 xlabel('CV')
 
+subplot(2,1,2)
 xtick = [log10([60 120 240 480])];
 xticklabels = arrayfun(@num2str,(10.^xtick)/60,'UniformOutput',false);
-figure(32)
-axc(1)=subplot(4,1,1)
 e=linspace(log10(60)-.1,log10(600)+.1,1024);
 [f,x] = ksdensity(log10(fluc.optimal_window_size(:,1)),e,'Support',[min(e) max(e)],'BoundaryCorrection','reflection');
 shadedErrorBar(x,f*0,[f; f*0],'b');
@@ -31,23 +31,32 @@ shadedErrorBar(x,fcontrol*0,[fcontrol; fcontrol*0],'r');
 box off; set(gca,'TickDir','out')
 hold off
 set(gca,'XTick',xtick)
-set(gca,'XTickLabel','')
+set(gca,'XTickLabel',xticklabels)
+xlabel(['Optimal Window Size' ...
+    ''])
+axis tight
 
-axc(2)=subplot(4,1,2)
+%%
+figure(32)
+axc(2)=subplot(3,1,1)
 plot(log10(fluc.optimal_window_size),syn_table.syn_efficacy,'.')
 set(gca,'XTick',xtick)
 set(gca,'XTickLabel','')
 ylabel('Efficacy')
 box off; set(gca,'TickDir','out')
+addLinTrend(log10(fluc.optimal_window_size(:,1)),syn_table.syn_efficacy,'b')
+addLinTrend(log10(fluc.optimal_window_size(:,2)),syn_table.syn_efficacy,'r')
 
-axc(3)=subplot(4,1,3)
+axc(3)=subplot(3,1,2)
 plot(log10(fluc.optimal_window_size),log10(syn_table.pre_firing_rate),'.')
 ylabel('Pre Firing Rate')
 set(gca,'XTick',xtick)
 set(gca,'XTickLabel','')
 box off; set(gca,'TickDir','out')
+addLinTrend(log10(fluc.optimal_window_size(:,1)),log10(syn_table.pre_firing_rate),'b')
+addLinTrend(log10(fluc.optimal_window_size(:,2)),log10(syn_table.pre_firing_rate),'r')
 
-axc(4)=subplot(4,1,4)
+axc(4)=subplot(3,1,3)
 plot(log10(fluc.optimal_window_size),log10(syn_table.post_firing_rate),'.')
 ylabel('Post Firing Rate')
 xlabel('Optimal Window Size [min]')
@@ -56,6 +65,8 @@ set(gca,'XTickLabel',xticklabels)
 box off; set(gca,'TickDir','out')
 linkaxes(axc,'x')
 xlim([log10(60) log10(600)])
+addLinTrend(log10(fluc.optimal_window_size(:,1)),log10(syn_table.post_firing_rate),'b')
+addLinTrend(log10(fluc.optimal_window_size(:,2)),log10(syn_table.post_firing_rate),'r')
 
 %% example of optimal window size for shuffled data
 
