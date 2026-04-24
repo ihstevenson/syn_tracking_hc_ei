@@ -1,5 +1,5 @@
 load("results\optimal_fluctuation_windows.mat")
-
+load('results\syn_index.mat')
 
 %% CV and optimal window size results for data and controls
 
@@ -37,36 +37,90 @@ xlabel(['Optimal Window Size' ...
 axis tight
 
 %%
+
+uws1 = min(diff(log10(unique(fluc.optimal_window_size(:,1)))));
+uws2 = min(diff(log10(unique(fluc.optimal_window_size(:,2)))));
+jit = (randn(size(fluc.optimal_window_size))).*[uws1 uws2];
+
+
 figure(32)
 axc(2)=subplot(3,1,1)
-plot(log10(fluc.optimal_window_size),syn_table.syn_efficacy,'.')
-set(gca,'XTick',xtick)
+plot(log10(fluc.optimal_window_size)+jit,log10(syn_table.syn_efficacy),'.')
+set(gca,'XTick',tick)
 set(gca,'XTickLabel','')
 ylabel('Efficacy')
 box off; set(gca,'TickDir','out')
-addLinTrend(log10(fluc.optimal_window_size(:,1)),syn_table.syn_efficacy,'b')
-addLinTrend(log10(fluc.optimal_window_size(:,2)),syn_table.syn_efficacy,'r')
+addLinTrend(log10(fluc.optimal_window_size(:,1)),log10(syn_table.syn_efficacy),'b')
+addLinTrend(log10(fluc.optimal_window_size(:,2)),log10(syn_table.syn_efficacy),'r')
 
 axc(3)=subplot(3,1,2)
-plot(log10(fluc.optimal_window_size),log10(syn_table.pre_firing_rate),'.')
+plot(log10(fluc.optimal_window_size)+jit,log10(syn_table.pre_firing_rate),'.')
 ylabel('Pre Firing Rate')
 set(gca,'XTick',xtick)
 set(gca,'XTickLabel','')
 box off; set(gca,'TickDir','out')
 addLinTrend(log10(fluc.optimal_window_size(:,1)),log10(syn_table.pre_firing_rate),'b')
 addLinTrend(log10(fluc.optimal_window_size(:,2)),log10(syn_table.pre_firing_rate),'r')
+ylim([-1 2])
 
 axc(4)=subplot(3,1,3)
-plot(log10(fluc.optimal_window_size),log10(syn_table.post_firing_rate),'.')
+plot(log10(fluc.optimal_window_size)+jit,log10(syn_table.post_firing_rate),'.')
 ylabel('Post Firing Rate')
 xlabel('Optimal Window Size [min]')
 set(gca,'XTick',xtick)
-set(gca,'XTickLabel',xticklabels)
+% set(gca,'XTickLabel',xticklabels)
 box off; set(gca,'TickDir','out')
 linkaxes(axc,'x')
 xlim([log10(60) log10(600)])
 addLinTrend(log10(fluc.optimal_window_size(:,1)),log10(syn_table.post_firing_rate),'b')
 addLinTrend(log10(fluc.optimal_window_size(:,2)),log10(syn_table.post_firing_rate),'r')
+ylim([-1 2])
+
+%% flip axes
+
+
+uws1 = min(diff(log10(unique(fluc.optimal_window_size(:,1)))));
+uws2 = min(diff(log10(unique(fluc.optimal_window_size(:,2)))));
+jit = (randn(size(fluc.optimal_window_size))).*[uws1 uws2];
+etick = [log10([.01 .02 .04 .08 .16 .32])];
+eticklabels = arrayfun(@num2str,(10.^etick)*100,'UniformOutput',false);
+figure(32)
+axc(2)=subplot(3,1,1)
+plot(log10(syn_table.syn_efficacy),log10(fluc.optimal_window_size)+jit,'.')
+axis tight
+set(gca,'YTick',xtick)
+set(gca,'YTickLabel',xticklabels)
+set(gca,'XTick',etick)
+set(gca,'XTickLabel',eticklabels)
+xlabel('Efficacy')
+
+box off; set(gca,'TickDir','out')
+addLinTrend(log10(syn_table.syn_efficacy),log10(fluc.optimal_window_size(:,1)),'b')
+addLinTrend(log10(syn_table.syn_efficacy),log10(fluc.optimal_window_size(:,2)),'r')
+
+axc(3)=subplot(3,1,2)
+plot(log10(syn_table.pre_firing_rate),log10(fluc.optimal_window_size)+jit,'.')
+xlabel('Pre Firing Rate')
+set(gca,'YTick',xtick)
+set(gca,'YTickLabel',xticklabels)
+box off; set(gca,'TickDir','out')
+addLinTrend(log10(syn_table.pre_firing_rate),log10(fluc.optimal_window_size(:,1)),'b')
+addLinTrend(log10(syn_table.pre_firing_rate),log10(fluc.optimal_window_size(:,2)),'r')
+xlim([-.6 2])
+
+axc(4)=subplot(3,1,3)
+plot(log10(syn_table.post_firing_rate),log10(fluc.optimal_window_size)+jit,'.')
+xlabel('Post Firing Rate')
+ylabel('Optimal Window Size [min]')
+set(gca,'YTick',xtick)
+set(gca,'YTickLabel',xticklabels)
+box off; set(gca,'TickDir','out')
+linkaxes(axc,'y')
+ylim([log10(60) log10(600)])
+addLinTrend(log10(syn_table.post_firing_rate),log10(fluc.optimal_window_size(:,1)),'b')
+addLinTrend(log10(syn_table.post_firing_rate),log10(fluc.optimal_window_size(:,2)),'r')
+xlim([-.6 2])
+
 
 %% example of optimal window size for shuffled data
 
@@ -97,6 +151,7 @@ yl = ylim();
 ylim([max(yl(1),min(smooth_estimate.eff)-rr*2) min(yl(2),max(smooth_estimate.eff)+rr*2)])
 
 
+
 %%
 figure(34)
 opt_res.dev(~isfinite(opt_res.dev))=NaN;
@@ -108,3 +163,6 @@ b=nanmean(squeeze(opt_res_shuff.dev(1,2,:)));
 % errorbar(opt_res_shuff.win_vec,mean(squeeze(opt_res_shuff.dev(:,2,:)),2)-b,std(squeeze(opt_res_shuff.dev(:,2,:)),1,2)/sqrt(5))
 plot(opt_res.win_vec,nanmean(squeeze(opt_res_shuff.dev(:,2,:)),2)-b)
 hold off
+box off
+xlabel('Optimal Window Size')
+ylabel('Deviance')
