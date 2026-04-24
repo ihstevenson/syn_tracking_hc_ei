@@ -7,11 +7,10 @@ for rec_num=1:length(glist)
     prefix = strsplit(glist(rec_num).name,'_');
     prefix = prefix{1};
     load([output_dir prefix '_detection'])
-    load([output_dir prefix '_opt_window'])
-
-    T = max(cellfun(@max,data.Tlist));
-
     if ~isempty(detection.ijlist)
+        load([output_dir prefix '_opt_window'])
+        T = max(cellfun(@max,data.Tlist));
+
         for cnx = 1:size(detection.ijlist,1)
             ij = detection.ijlist(cnx,:);
 
