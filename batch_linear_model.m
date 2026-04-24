@@ -89,7 +89,7 @@ end
 save('batch_linear_result','aic_stp','aic_cov','aic_bcm','r2_stp','r2_cov','r2_bcm','coef')
 %% fig5e-f
 
-figure(51)
+figure(53)
 r2_bcm_opt = max(r2_bcm')';
 dat = [r2_stp' r2_cov(:,[1 6 11]) r2_bcm(:,[1 6 11]) r2_bcm_opt];
 bar(prctile(dat,50))
@@ -109,3 +109,20 @@ aic_cov_opt=min(aic_cov')';
 aic_bcm_opt=min(aic_bcm')';
 [~,i]=min([aic_stp' aic_cov_opt aic_bcm_opt]');
 tabulate(i)
+
+%%
+
+load('results\syn_index')
+for cnx=1:size(coef,1)
+    coef_opt(cnx,:) = coef(cnx,i(cnx),:);
+end
+
+figure(54)
+[~,~,ia]=unique(syn_table.pre_anat);
+for area=1:3
+    c = coef_opt(ia==area,:);
+    c = c(:,2:end);
+    bar([1:4]*3+area,prctile(c,50),prctile(c,50)-prctile(c,25),prctile(c,75)-prctile(c,50))
+    hold on
+end
+hold off
