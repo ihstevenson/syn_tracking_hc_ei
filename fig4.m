@@ -6,7 +6,7 @@ pair_id = 8; % from data subset
 Tlist(1) = Tlist_pre(pair_id);
 Tlist(2) = Tlist_post(pair_id);
 
-dt=0.1; % time resolution for rate effects [s]
+dt=4; % time resolution for rate effects [s]
 tin = linspace(0,T(pair_id),ceil(T(pair_id)/dt));
 [y_pre,t_pre,optw,W1,C1] = sskernel(Tlist{1},tin);
 pre_fr = y_pre/sum(y_pre)*length(Tlist{1});

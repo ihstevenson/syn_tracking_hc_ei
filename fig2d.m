@@ -6,7 +6,7 @@ load('results\syn_index')
 % Data plotted in Fig 2 comes from pair_ids 1-6
 % corresponding to pairs in syn_table(subset_index,:)
 % running optimal window size estimation takes ~10min
-pair_id = 1; % from data subset
+pair_id = 5; % from data subset
 Tlist(1) = Tlist_pre(pair_id);
 Tlist(2) = Tlist_post(pair_id);
 

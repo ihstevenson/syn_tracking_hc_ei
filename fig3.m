@@ -88,11 +88,12 @@ ylim([max(yl(1),min(smooth_estimate.eff)-rr*2) min(yl(2),max(smooth_estimate.eff
 
 %%
 figure(34)
-b=mean(squeeze(opt_res.dev(1,2,:)));
+opt_res.dev(~isfinite(opt_res.dev))=NaN;
+b=nanmean(squeeze(opt_res.dev(1,2,:)));
 % errorbar(opt_res.win_vec,mean(squeeze(opt_res.dev(:,2,:)),2)-b,std(squeeze(opt_res.dev(:,2,:)),1,2)/sqrt(5))
-plot(opt_res.win_vec,mean(squeeze(opt_res.dev(:,2,:)),2)-b)
+plot(opt_res.win_vec,nanmean(squeeze(opt_res.dev(:,2,:)),2)-b)
 hold on
-b=mean(squeeze(opt_res_shuff.dev(1,2,:)));
+b=nanmean(squeeze(opt_res_shuff.dev(1,2,:)));
 % errorbar(opt_res_shuff.win_vec,mean(squeeze(opt_res_shuff.dev(:,2,:)),2)-b,std(squeeze(opt_res_shuff.dev(:,2,:)),1,2)/sqrt(5))
-plot(opt_res.win_vec,mean(squeeze(opt_res_shuff.dev(:,2,:)),2)-b)
+plot(opt_res.win_vec,nanmean(squeeze(opt_res_shuff.dev(:,2,:)),2)-b)
 hold off
