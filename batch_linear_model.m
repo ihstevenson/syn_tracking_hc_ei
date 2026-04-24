@@ -86,7 +86,7 @@ for rec_num=1:length(glist)
     end
 end
 
-save('batch_linear_result','aic_stp','aic_cov','aic_bcm','r2_stp','r2_cov','r2_bcm')
+save('batch_linear_result','aic_stp','aic_cov','aic_bcm','r2_stp','r2_cov','r2_bcm','coef')
 %% fig5e-f
 
 figure(51)
