@@ -114,15 +114,19 @@ tabulate(i)
 
 load('results\syn_index')
 for cnx=1:size(coef,1)
-    coef_opt(cnx,:) = coef(cnx,i(cnx),:);
+    % coef_opt(cnx,:) = coef(cnx,i(cnx),:);
+    coef_opt(cnx,:) = coef(cnx,6,:);
 end
+coef_opt(~isfinite(r2_stp),:)=NaN;
 
 figure(54)
+clf
 [~,~,ia]=unique(syn_table.pre_anat);
 for area=1:3
     c = coef_opt(ia==area,:);
-    c = c(:,2:end);
-    bar([1:4]*3+area,prctile(c,50),prctile(c,50)-prctile(c,25),prctile(c,75)-prctile(c,50))
+    c = c(:,2:end);    
+    bar([0:3]*5+area,prctile(c,50),.1)
     hold on
+    errorbar([0:3]*5+area,prctile(c,50),prctile(c,50)-prctile(c,25),prctile(c,75)-prctile(c,50),'.')
 end
 hold off
